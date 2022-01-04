@@ -13,6 +13,7 @@ La actividad ha sido realizada de manera individual por **Eduardo Béjar**.
 3. **edobejar-PRA2.Rmd**: Código generado en R para hacer la limpieza y análisis de los datos.
 4. **titanic/train.csv, titanic/test.csv, titanic/gender_submission.csv**: Ficheros CSV con los datos originales.
 5. **TitanicDatosLimpios.csv, TitanicPrediccion.csv**: Ficheros CSV con los datos finales analizados.
+6. **edobejar-PRA2video.mp4**: Video de presentación de la Práctica 2.
 
 ## Recursos
 - Titanic - Machine Learning from Disaster, Kaggle - https://www.kaggle.com/c/titanic
