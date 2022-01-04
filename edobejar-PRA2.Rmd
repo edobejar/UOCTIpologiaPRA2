@@ -363,7 +363,7 @@ chisq.test(tablaPclassSex)
 Considerando que el p-valor obtenido no es superior a 0,05 entonces rechazamos esta hipótesis de posible relación entre ambas. En conclusión, la mayoría de personas que viajó en primera clase según los datos fueron hombres.
 
 
-**Hipótesis 3:** Las mayoría de mujeres que viajaron en el Titanic se embarcaron en Queenstown.
+**Hipótesis 3:** La mayoría de mujeres que viajaron en el Titanic se embarcaron en Queenstown.
 
 **Relación entre Sexo y Puerto de Embarque**
 
@@ -387,7 +387,7 @@ chisq.test(tablaSexEmbarked)
 Considerando que el p-valor obtenido no es superior a 0,05 entonces rechazamos esta hipótesis de posible relación entre ambas. En conclusión, la mayoría de mujeres que viajaron en el Titanic no se embarcaron en Queenstown. En la gráfica se aprecia que lo hicieron en Southampton.
 
 
-**Hipótesis 4:** Las mayoría de personas jovenes que viajaron en el Titanic fueron mujeres.
+**Hipótesis 4:** La mayoría de personas jovenes que viajaron en el Titanic fueron mujeres.
 
 **Relación entre Grupos de Edad y Sexo**
 
