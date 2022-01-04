@@ -1,0 +1,578 @@
+---
+title: 'Tipología y ciclo de vida de datos: PRA2 - Limpieza y análisis de datos'
+author: "Autor: Eduardo Béjar Feijoó"
+date: "Enero 2022"
+output:
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Presentación
+Tipología y ciclo de vida de datos: Práctica 2 - Limpieza y análisis de datos
+**Autor: Eduardo Béjar Feijoó**
+**Fecha: Enero 2022**
+
+## Descripción de la Práctica a realizar
+
+El objetivo de esta actividad será el tratamiento de un dataset, que puede ser el creado en la
+práctica 1 o bien cualquier dataset libre disponible en Kaggle (https://www.kaggle.com).
+
+Algunos ejemplos de dataset con los que podéis trabajar son:
+
+- Red Wine Quality (https://www.kaggle.com/uciml/red-wine-quality-cortez-et-al-2009)
+- Titanic: Machine Learning from Disaster (https://www.kaggle.com/c/titanic)
+
+El último ejemplo corresponde a una competición activa de Kaggle de manera que,
+opcionalmente, podéis aprovechar el trabajo realizado durante la práctica para entrar en esta
+competición.
+
+Siguiendo las principales etapas de un proyecto analítico, las diferentes tareas a realizar (y justificar) son las siguientes:
+
+##1. Descripción del dataset. ¿Por qué es importante y qué pregunta/problema pretende responder?
+
+Para esta práctica seleccioné el dataset Titanic, en base a lo sugerido en el enunciado. En Kaggle este dataset está dividido en 2, uno de entrenamiento y otro de prueba. Este dataset es importante para responder preguntas como cuál era el perfil de los pasajeros que iban en el Titanic al momento de su naufragio, o cómo predecir si un pasajero sobrevivió o no al naufragio según su perfil de edad, sexo, o clase en la que viajaba.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# https://cran.r-project.org/web/packages/dplyr/index.html
+if (!require('dplyr')) install.packages('dplyr'); library('dplyr')
+
+TitanicTrain <- read.csv('titanic/train.csv',head(T))
+TitanicTest <- read.csv('titanic/test.csv',head(T))
+```
+
+##2. Integración y selección de los datos de interés a analizar.
+
+Analizamos la estructura de los dos datasets (train y test):
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+str(TitanicTrain)
+str(TitanicTest)
+```
+Observamos que en el dataset de Train hay 12 columnas y en el de Test hay 11. Esto se debe a que este conjunto de datos es parte de la competencia de Kaggle para predecir si un pasajero sobrevivió o falleció en el percance del Titanic. De allí que en el dataset de Test no está la columna Survived.
+
+Para poder realizar la integración vertical de los dos conjuntos de datos para trabajar esta Práctica, agregamos al dataset Test una columna survived con valor de No Disponible (NA - Not Available).
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicTest[,"Survived"] <- NA
+```
+
+Revisamos nuevamente la estructura de los conjuntos de datos:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+str(TitanicTrain)
+str(TitanicTest)
+```
+
+Vemos que ahora ambos datasets cuentan con 12 columnas. Procedemos a integrarlos verticalmente para trabajar el análisis con un solo dataset:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicDataset <- rbind(TitanicTrain, TitanicTest)
+```
+
+Revisamos la estructura del dataset resultante:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+str(TitanicDataset)
+```
+
+Verificamos que el dataset resultante cuenta con el total de la suma de las filas de los dos datasets originales, esto es 1.309 filas.
+
+Para efectos del análisis de esta Práctica, seleccionamos solamente las columnas de PassengerId (Id de Pasajero), Pclass (Clase en la que viajaba el pasajero), Sex (Sexo), Age (Edad en años), y Embarked (Puerto de embarque el pasajero).
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicAnalisis <- TitanicDataset %>% select(PassengerId, Pclass, Sex, Age, Embarked)
+str(TitanicAnalisis)
+```
+
+##3. Limpieza de los datos.
+
+##3.1. ¿Los datos contienen ceros o elementos vacíos? ¿Cómo gestionarías cada uno de estos casos?
+
+Revisamos si las columnas del dataset de análisis tienen ceros o elementos vacíos:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+colSums(is.na(TitanicAnalisis))
+colSums(TitanicAnalisis=="")
+```
+
+Encontramos que para la columna Age (Edad) existen 263 filas con valor de NA (No Disponible), y para Embarked (Puerto de embarque el pasajero) existen 2 filas con valores vacíos.
+
+Para el caso de Age y Embarked, imputamos valores en base a la similitud o diferencia del resto de valores mediante kNN (k-Nearest Neighbour):
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+if (!require('VIM')) install.packages('VIM'); library('VIM')
+if (!require('Rcpp')) install.packages('Rcpp'); library('Rcpp')
+
+suppressWarnings(suppressMessages(library(VIM)))
+suppressWarnings(suppressMessages(library(Rcpp)))
+TitanicAnalisis$Age <- kNN(TitanicAnalisis)$Age
+```
+
+Revisamos nuevamente si las columnas del dataset de análisis tienen ceros o elementos vacíos:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+colSums(is.na(TitanicAnalisis))
+colSums(TitanicAnalisis=="")
+```
+
+Observamos que ya no existen valores NA en Age. Vemos ahora los 2 valores vacíos de Embarked. Considerando que se refiere a Puertos de embarque de pasajeros y que solo son 2 valores, eliminamos esas 2 filas para trabajar con los datos.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicAnalisis <- TitanicAnalisis %>% dplyr::filter(!(Embarked==""))
+
+colSums(is.na(TitanicAnalisis))
+colSums(TitanicAnalisis=="")
+
+```
+
+Vemos que ya no se reportan valores NA ni vacíos, y que contamos con 1307 filas y 5 columnas. Almacenamos este dataset resultante en un nuevo archivo CSV.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+write.csv(TitanicAnalisis,"TitanicDatosLimpios.csv", row.names = TRUE)
+```
+
+##3.2. Identificación y tratamiento de valores extremos.
+
+Revisamos si existen valores extremos o outliers, en especial en la columna Age.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+summary(TitanicAnalisis)
+```
+
+Observamos que en Age el valor máximo es de 80, lo cual es un valor posible para edad, por lo que no se identifican valores extremos u outliers para tratar. Para el caso de PassengerId, este dato no es relevante en términos numéricos sino para identificar registros distintos. Pclass solo tiene 3 valores posibles (1, 2 y 3) y Sex y Embarked son variables categóricas.
+
+Revisamos los datos de Edad de manera gráfica:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot(TitanicAnalisis$Age)
+```
+Comprobamos que no se observan puntos fuera del rango posible. Ahora visualizamos las edades como histograma:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+hist(TitanicAnalisis$Age,
+  xlab = "Age",
+  col="blue",
+  main = "Histograma de Edades",
+  breaks = sqrt(nrow(TitanicAnalisis))
+) 
+```
+De igual manera, comprobamos que no se observan puntos fuera del rango posible. 
+
+**Solamente para efectos académicos de la Práctica y sobre valores extremos**, agregamos un valor al dataset con Edad de 500 para observar y probar lo que ocurre cuando se tienen valores extremos u outliers (Es decir este paso no es necesario cuando se analizan datos.):
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+if (!require('tidyverse')) install.packages('tidyverse'); library('tidyverse')
+
+TitanicAnalisis[nrow(TitanicAnalisis) + 1,] = list(PassengerId = 1310, Pclass = 1, Sex = "M", Age=500, Embarked = "Q")
+
+summary(TitanicAnalisis)
+```
+
+Está agregado el outlier de 500 en Edad. Lo vemos gráficamente:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+boxplot(TitanicAnalisis$Age)$out
+```
+Apreciamos en el gráfico de caja, en la parte superior el valor extremo de 500. También se observan ciertos valores que constan fuera de la caja y que podrían ser considerados también como outliers; sin embargo, se trata de valores de edad de hasta 80 años que son perfectamente posibles.
+
+Para ilustrarlo, utilizamos la función stats de boxplot para encontrar los outliers que se identifican:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+boxplot.stats(TitanicAnalisis$Age)$out
+```
+
+Para eliminar los outliers se pueden aplicar varias técnicas como la distancia de Mahalanobis o la distancia de Cook. Probamos con la distancia de Mahalanobis:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#Calculo de distancia Mahalanobis para eliminar outliers
+Q1 <- quantile(TitanicAnalisis$Age, .25)
+Q3 <- quantile(TitanicAnalisis$Age, .75)
+IQR <- IQR(TitanicAnalisis$Age)
+
+#Creo nuevo dataset sin outliers
+TitanicSinOutliers <- subset(TitanicAnalisis, TitanicAnalisis$Age > (Q1 - 1.5*IQR) & TitanicAnalisis$Age < (Q3 + 1.5*IQR))
+dim(TitanicSinOutliers)
+boxplot(TitanicSinOutliers$Age)
+```
+De esta manera se habrían eliminado los valores extremos del dataset. Considerando que no vamos a eliminar los valores que se detectaron como extremos, debido a que son edades perfectamente posibles, solamente eliminamos el valor que agregamos de Edad 500 para probar, y continuar analizando el conjunto de datos:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicAnalisis<-subset(TitanicAnalisis, PassengerId!=1310)
+summary(TitanicAnalisis)
+boxplot(TitanicAnalisis$Age)
+```
+Como se indicó, a pesar de que en el gráfico se observan valores fuera de la caja, reiteramos que las edades de hasta 80 años que estos representan son perfectamente posibles.
+
+##4. Análisis de los datos.
+
+##4.1. Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).
+
+Considerando que en el dataset de Análisis (TitanicAnalisis) se cuentan con las variables PassengerId, Pclass, Sex, Age y Embarked, realizaremos los siguientes análisis:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Agrupación por clases
+# 1 = 1st, 2 = 2nd, 3 = 3rd
+Titanic.PrimeraClase <- TitanicAnalisis[TitanicAnalisis$Pclass == 1,]
+Titanic.SegundaClase <- TitanicAnalisis[TitanicAnalisis$Pclass == 2,]
+Titanic.TerceraClase <- TitanicAnalisis[TitanicAnalisis$Pclass == 3,]
+
+# Agrupacion por Puerto de Embarque
+# C = Cherbourg, Q = Queenstown, S = Southampton
+Titanic.Cherbourg <- TitanicAnalisis[TitanicAnalisis$Embarked == "C",]
+Titanic.Queenstown <- TitanicAnalisis[TitanicAnalisis$Embarked == "Q",]
+Titanic.Southampton <- TitanicAnalisis[TitanicAnalisis$Embarked == "S",]
+
+#Agrupacion por Sexo
+Titanic.Male <- TitanicAnalisis[TitanicAnalisis$Sex == "male",]
+Titanic.Female <- TitanicAnalisis[TitanicAnalisis$Sex == "female",]
+
+```
+
+##4.2. Comprobación de la normalidad y homogeneidad de la varianza.
+
+Realizamos la comprobación de la normalidad, utilizando como referencia la función incluida en el Ejemplo de la Práctica provisto, mediante la prueba de normalidad Anderson-Darling.
+
+Tal como se menciona en el Ejemplo, Si los valores de p que se obtienen son superiores al alpha definido de 0,05 entonces esa variable sigue una distribución normal.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+if (!require('nortest')) install.packages('nortest'); library('nortest')
+
+alpha = 0.05
+col.names = colnames(TitanicAnalisis)
+for (i in 1:ncol(TitanicAnalisis)) {
+  if (i == 1) cat("Variables que NO siguen una distribución normal:\n")
+  if (is.integer(TitanicAnalisis[,i]) | is.numeric(TitanicAnalisis[,i])) {
+    p_val = ad.test(TitanicAnalisis[,i])$p.value
+    if (p_val < alpha) {
+      cat(col.names[i])
+      
+      # Format output
+      if (i < ncol(TitanicAnalisis) - 1) cat(", ")
+      if (i %% 3 == 0) cat("\n")
+    }
+  }
+}
+```
+
+En base al resultado obtenido se encuentra que las variables PassengerId, Pclass y Age no siguen una distribución normal. Cabe destacar que Sex y Embarked son variables categóricas.
+
+Ahora, realizaremos la comprobación de homogeneidad de la varianza aplicando la prueba Fligner-Killeen. Siguiendo el mismo ejemplo, realizaremos el análisis utilizando las variables Age y Pclass.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+fligner.test(Age ~ Pclass, data = TitanicAnalisis)
+```
+
+Considerando que el p-valor obtenido no es superior a 0,05 entonces las varianzas de ambas muestras no son homogéneas.
+
+##4.3. Aplicación de pruebas estadísticas para comparar los grupos de datos. En función de los datos y el objetivo del estudio, aplicar pruebas de contraste de hipótesis, correlaciones, regresiones, etc. Aplicar al menos tres métodos de análisis diferentes.
+
+###Correlaciones
+
+Encontramos la matriz de correlación del dataset:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+if (!require('corrplot')) install.packages('corrplot'); library('corrplot')
+
+TitanicCorrelacion <- data.matrix(TitanicAnalisis)
+#summary(TitanicCorrelacion)
+MatrizCorrelacion <- cor(TitanicCorrelacion, method = "spearman")
+corrplot(MatrizCorrelacion)
+```
+En base a la matriz de correlación encontramos que no existe ningun correlación que se destaque entre las variables. Solamente se aprecia una posible correlación negativa entre Edad y Clase que implicaría que mientras menor edad tienen las personas mayor el valor de su clase. En este caso significaría que en la Tercera Clase del Titanic viajaron personas más jóvenes que en la Primera Clase.
+
+###Pruebas de contraste de hipótesis
+
+Revisemos ahora las posibles relaciones entre variables para validar o descartar hipótesis. Considerando que en este dataset tenemos 1 variable numérica (Age, ya que no se considera PassengerId) y 3 variables categóricas (Pclass, Sex, Embarked), trabajaremos encontrando asociaciones entre las categóricas.
+
+Para trabajar con las edades de forma categórica, las discretizamos en grupos para agruparlas para el análisis:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+# Agrego columna de edades discretizadas
+TitanicAnalisis$GruposEdad <- cut(TitanicAnalisis$Age, breaks = c(0,10,20,30,40,50,60,70,100), labels = c("0-9", "10-19", "20-29", "30-39","40-49","50-59","60-69","70-79"))
+head(TitanicAnalisis)
+```
+
+Ahora revisamos las hipótesis en base a relaciones:
+
+**Hipótesis 1:** Las personas que se embarcaron en Southampton prefirieron viajar en Primera Clase.
+
+**Relación entre Clase y Puerto de Embarque**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Tablas de contingencia
+attach(TitanicAnalisis) 
+#table(Pclass)
+#table(Sex)
+#table(Embarked)
+
+# Relación entre Pclass y Embarked
+tablaPclassEmbarked <- table(Pclass,Embarked)
+tablaPclassEmbarked
+
+```
+
+Ahora lo graficamos:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot(tablaPclassEmbarked, col = c("green", "blue"), main = "Clase vs. Puerto de Embarque")
+```
+Buscamos si existe relación estadísticamente significativa entre ambas aplicando la prueba de chi cuadrado:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+chisq.test(tablaPclassEmbarked)
+```
+
+Considerando que el p-valor obtenido no es superior a 0,05 entonces rechazamos esta hipótesis de posible relación entre ambas. Incluso se observa en el gráfico que quienes embarcaron en Southampton en su mayoría viajaron en tercera clase. En conclusión, las personas que se embarcaron en Southampton NO prefirieron viajar en Primera Clase.
+
+
+**Hipótesis 2:** Las mayoría de mujeres que viajaron en el Titanic prefirieron hacerlo en primera clase.
+
+**Relación entre Clase y Sexo**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+# Relación entre Pclass y Sexo
+tablaPclassSex <- table(Pclass,Sex)
+tablaPclassSex
+```
+
+Ahora lo graficamos:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot(tablaPclassSex, col = c("red", "orange"), main = "Clase vs. Sexo")
+```
+
+Buscamos si existe relación estadísticamente significativa entre ambas aplicando la prueba de chi cuadrado:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+chisq.test(tablaPclassSex)
+```
+
+Considerando que el p-valor obtenido no es superior a 0,05 entonces rechazamos esta hipótesis de posible relación entre ambas. En conclusión, la mayoría de personas que viajó en primera clase según los datos fueron hombres.
+
+
+**Hipótesis 3:** Las mayoría de mujeres que viajaron en el Titanic se embarcaron en Queenstown.
+
+**Relación entre Sexo y Puerto de Embarque**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Relación entre Sexo y Embarked
+tablaSexEmbarked <- table(Sex,Embarked)
+tablaSexEmbarked
+```
+
+Ahora lo graficamos:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot(tablaSexEmbarked, col = c("yellow", "blue"), main = "Sexo vs Puerto de Embarque")
+```
+Buscamos si existe relación estadísticamente significativa entre ambas aplicando la prueba de chi cuadrado:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+chisq.test(tablaSexEmbarked)
+```
+
+Considerando que el p-valor obtenido no es superior a 0,05 entonces rechazamos esta hipótesis de posible relación entre ambas. En conclusión, la mayoría de mujeres que viajaron en el Titanic no se embarcaron en Queenstown. En la gráfica se aprecia que lo hicieron en Southampton.
+
+
+**Hipótesis 4:** Las mayoría de personas jovenes que viajaron en el Titanic fueron mujeres.
+
+**Relación entre Grupos de Edad y Sexo**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Relación entre Grupos de Edad y Sexo
+tablaGruposEdadSex <- table(GruposEdad,Sex)
+tablaGruposEdadSex
+```
+
+Ahora lo graficamos:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot(tablaGruposEdadSex, col = c("green", "orange"), main = "Grupos de Edad vs Sexo")
+```
+
+Buscamos si existe relación estadísticamente significativa entre ambas aplicando la prueba de chi cuadrado:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+chisq.test(tablaGruposEdadSex)
+```
+
+Considerando que el p-valor obtenido no es superior a 0,05 entonces rechazamos esta hipótesis de posible relación entre ambas. En conclusión, como se observa en la gráfica, la mayoría de personas jovenes fueron hombres.
+
+
+###Regresiones
+
+Para esta práctica realizaremos la predicción de los supervivientes para el dataset de Test, a partir de un modelo de regresión logística, al tratarse de una predicción de datos binarios (Survived 1 o 0). Comenzamos llamando nuevamente a los datasets de Train y Test:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicTestRegresion <- read.csv('titanic/test.csv',head(T))
+TitanicTrainRegresion <- read.csv('titanic/train.csv',head(T))
+```
+
+Nuevamente realizamos su limpieza y preparación:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+print("Train - NA")
+colSums(is.na(TitanicTrainRegresion))
+print("Train - Vacíos")
+colSums(TitanicTrainRegresion=="")
+
+print("Test - NA")
+colSums(is.na(TitanicTestRegresion))
+print("Test - Vacíos")
+colSums(TitanicTestRegresion=="")
+
+```
+
+Encontramos que para el caso del dataset Train, Fare tiene 1 valor NA y Age 86. Además, Cabin tiene 327 valores vacíos.
+
+Para Test, Age tiene 177 NA y vacíos Cabin 687 y Embarked 2.
+
+Procedemos a imputar valores a los NA y vacíos, en base a la similitud o diferencia del resto de valores mediante kNN (k-Nearest Neighbour):
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+TitanicTrainRegresion$Age <- kNN(TitanicTrainRegresion)$Age
+TitanicTrainRegresion$Fare <- kNN(TitanicTrainRegresion)$Fare
+
+TitanicTestRegresion$Age <- kNN(TitanicTestRegresion)$Age
+TitanicTestRegresion$Fare <- kNN(TitanicTestRegresion)$Fare
+
+```
+
+Verificamos nuevamente los datasets:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+print("Train - NA")
+colSums(is.na(TitanicTrainRegresion))
+print("Train - Vacíos")
+colSums(TitanicTrainRegresion=="")
+
+print("Test - NA")
+colSums(is.na(TitanicTestRegresion))
+print("Test - Vacíos")
+colSums(TitanicTestRegresion=="")
+```
+Para el caso de la variables Cabin no la utilizaremos para el análisis por lo que se elimina la columna. También eliminamos Ticket que no es relevante. 
+
+Y para el caso de Embarked, que en Train tiene 2 vacíos, eliminamos esas 2 filas vacías.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+TitanicTrainRegresion <- TitanicTrainRegresion %>% select(-PassengerId, -Ticket, -Cabin, -Name)
+TitanicTrainRegresion <- TitanicTrainRegresion %>% dplyr::filter(!(Embarked==""))
+
+TitanicTestRegresion <- TitanicTestRegresion %>% select(-PassengerId, -Ticket, -Cabin, -Name)
+
+print("Train - NA")
+colSums(is.na(TitanicTrainRegresion))
+print("Train - Vacíos")
+colSums(TitanicTrainRegresion=="")
+
+print("Test - NA")
+colSums(is.na(TitanicTestRegresion))
+print("Test - Vacíos")
+colSums(TitanicTestRegresion=="")
+
+```
+
+De esta manera ya tenemos los datasets de Train y Test limpios para el análisis.
+
+Ahora transformamos en el dataset de entrenamiento las variables categóricas a factores para poderlas trabajar en el modelo:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicTrainRegresion$Survived <- factor(TitanicTrainRegresion$Survived)
+TitanicTrainRegresion$Sex <- factor(TitanicTrainRegresion$Sex)
+TitanicTrainRegresion$Pclass <- factor(TitanicTrainRegresion$Pclass)
+TitanicTrainRegresion$SibSp <- factor(TitanicTrainRegresion$SibSp)
+TitanicTrainRegresion$Parch <- factor(TitanicTrainRegresion$Parch)
+TitanicTrainRegresion$Embarked <- factor(TitanicTrainRegresion$Embarked)
+str(TitanicTrainRegresion)
+```
+Ahora procedemos a entrenar el modelo con los datos del dataset de Train:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+log.model <- glm(Survived~., family=binomial(link='logit'), data=TitanicTrainRegresion)
+summary(log.model)
+```
+Vemos que el modelo indica que las variables Pclass2, Pclass3, Sexmale y Age (señaladas con ***) son las que más afectan al modelo.
+
+Ahora preparamos el dataset Test, transformando también a factor las variables categóricas:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicTestRegresion$Sex <- factor(TitanicTestRegresion$Sex)
+TitanicTestRegresion$Pclass <- factor(TitanicTestRegresion$Pclass)
+TitanicTestRegresion$SibSp <- factor(TitanicTestRegresion$SibSp)
+TitanicTestRegresion$Parch <- factor(TitanicTestRegresion$Parch)
+TitanicTestRegresion$Embarked <- factor(TitanicTestRegresion$Embarked)
+str(TitanicTestRegresion)
+```
+
+En las pruebas iniciales de esta Práctica, la prueba del modelo retornó error debido a que la variable Parch en el dataset de Test cuenta con un nivel adicional (Train$Parch tiene 7 y Test$Parch tiene 8). Revisando en Excel el dataset encontramos que solo son 2 registros que tienen Parch con nivel 9, por lo que procedemos a eliminarlos del test para esta práctica:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+TitanicTestRegresion <- TitanicTestRegresion %>% dplyr::filter(!(Parch==9))
+```
+
+Procedemos a probar el modelo con el dataset Test:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+fitted.probabilities <- predict(log.model, TitanicTestRegresion, type='response')
+fitted.results <- ifelse(fitted.probabilities>0.5, 1,0)
+TitanicTestRegresion$Survived_prediccion <- fitted.results
+head(TitanicTestRegresion)
+```
+
+Vemos que en el dataset de Test se agregó la columna Survived_prediccion con la predicción de si sobrevivió o no el pasajero.
+
+Ahora realizamos cross-validation del modelo utilizando 10-fold cross-validation:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+if (!require('caret')) install.packages('caret'); library('caret')
+if (!require('naivebayes')) install.packages('naivebayescaret'); library('naivebayes')
+
+set.seed(100)
+trctrl <- trainControl(method = "cv", number = 10, savePredictions=TRUE)
+
+nb_fit <- train(factor(Survived) ~., data = TitanicTrainRegresion, method = "naive_bayes", trControl=trctrl, tuneLength = 0)
+nb_fit
+```
+
+A partir del 10-fold cross-validation encontramos que el modelo tiene una precisión del 61,75%.
+
+Ahora guardamos la predicción en un archivo CSV:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+write.csv(TitanicTestRegresion,"TitanicPrediccion.csv", row.names = TRUE)
+```
+
+##5. Representación de los resultados a partir de tablas y gráficas.
+
+Hemos utilizado gráficas en el desarrollo de esta práctica.
+
+##6. Resolución del problema. A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
+
+Si bien el modelo predice si las personas del dataset de Test sobrevivieron o no al naufragio del Titanic, el que tenga 61% de precisión hace que no sea tan confiable y que se requiera probar con otros modelos. Por otro lado, en el caso de las relaciones los resultados son más claros ya que se pudo validar o rechazar a las hipótesis planteadas.
+
+##7. Código: Hay que adjuntar el código, preferiblemente en R, con el que se ha realizado la limpieza, análisis y representación de los datos. Si lo preferís, también podéis trabajar en Python.
+
+El código se desarrolló en R desde RStudio.
+
+
+| Contribuciones     | Firma |
+| ----------- | ----------- |
+| Investigación Previa      | Eduardo Béjar       |
+| Redacción de las respuestas   | Eduardo Béjar        |
+| Desarrollo de código   | Eduardo Béjar        |
